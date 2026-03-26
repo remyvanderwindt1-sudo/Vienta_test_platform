@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barcode Generator — Vienta Kennisbank</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { dark: '#0F3D47', DEFAULT: '#1A5F6E', light: '#2A8FA8', accent: '#E8A020' },
+            surface: '#F4F6F7',
+            ink: { DEFAULT: '#1C2327', muted: '#5A6472', subtle: '#8E97A0' }
+          },
+          fontFamily: {
+            display: ['"DM Serif Display"', 'Georgia', 'serif'],
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root { --sidebar-w: 260px; --brand-dark: #0F3D47; --brand: #1A5F6E; --accent: #E8A020; --surface: #F4F6F7; }
+    body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--surface); color: #1C2327; margin: 0; overflow: hidden; height: 100vh; }
+    #sidebar { width: var(--sidebar-w); height: 100vh; background: linear-gradient(165deg, #0C3540 0%, #1A5F6E 55%, #1D6B7C 100%); position: relative; overflow: hidden; flex-shrink: 0; display: flex; flex-direction: column; }
+    #sidebar::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); background-size: 200px 200px; pointer-events: none; z-index: 0; }
+    #sidebar::after { content: ''; position: absolute; top: -80px; right: -80px; width: 240px; height: 240px; background: radial-gradient(circle, rgba(232,160,32,0.12) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+    .sidebar-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; overflow-y: auto; scrollbar-width: none; }
+    .sidebar-content::-webkit-scrollbar { display: none; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .logo-mark { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #fff; letter-spacing: -0.3px; display: block; line-height: 1.1; }
+    .logo-sub { font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.42); margin-top: 3px; display: block; }
+    .nav-section { padding: 20px 16px 4px; }
+    .nav-section-title { font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.35); padding: 0 8px; margin-bottom: 4px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; text-decoration: none; color: rgba(255,255,255,0.68); font-size: 13.5px; font-weight: 400; cursor: pointer; margin-bottom: 1px; border-left: 2px solid transparent; transition: color 0.15s ease, opacity 0.15s ease, background 0.15s ease; }
+    .nav-item:hover { color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.07); }
+    .nav-item.active { color: #fff; background: rgba(255,255,255,0.12); border-left-color: var(--accent); font-weight: 500; }
+    .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.75; }
+    .nav-item.active svg, .nav-item:hover svg { opacity: 1; }
+    .sidebar-footer { margin-top: auto; padding: 16px 24px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-footer p { font-size: 11px; color: rgba(255,255,255,0.28); margin: 0; }
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #scroll-content { flex: 1; overflow-y: auto; padding: 32px 40px 64px; scrollbar-width: thin; scrollbar-color: rgba(15,61,71,0.15) transparent; }
+    #scroll-content::-webkit-scrollbar { width: 5px; }
+    #scroll-content::-webkit-scrollbar-track { background: transparent; }
+    #scroll-content::-webkit-scrollbar-thumb { background: rgba(15,61,71,0.15); border-radius: 10px; }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #8E97A0; margin-bottom: 28px; flex-wrap: wrap; }
+    .breadcrumb a { color: #8E97A0; text-decoration: none; }
+    .breadcrumb a:hover { color: var(--brand); }
+    .breadcrumb-sep { color: #C8CDD2; }
+
+    /* Tool header */
+    .tool-header { margin-bottom: 36px; max-width: 680px; }
+    .tool-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; background: rgba(61,111,110,0.1); color: #3D6F6E; margin-bottom: 14px; }
+    .tool-badge svg { width: 13px; height: 13px; }
+    .tool-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 38px; color: #1C2327; line-height: 1.12; margin: 0 0 10px; letter-spacing: -0.5px; }
+    .tool-desc { font-size: 15px; color: #5A6472; line-height: 1.65; margin: 0; }
+
+    /* Tool layout */
+    .tool-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; max-width: 860px; }
+
+    /* Input card */
+    .tool-card { background: #fff; border: 1.5px solid rgba(15,61,71,0.09); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(15,61,71,0.05), 0 4px 16px rgba(15,61,71,0.07); }
+    .tool-card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #8E97A0; margin: 0 0 20px; }
+
+    label { display: block; font-size: 13px; font-weight: 600; color: #1C2327; margin-bottom: 6px; }
+    .form-group { margin-bottom: 18px; }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid rgba(15,61,71,0.14);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: #1C2327;
+      background: #FAFBFC;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,95,110,0.09);
+    }
+    select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238E97A0' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+
+    .btn-generate {
+      width: 100%;
+      padding: 12px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-generate:hover { background: var(--brand-dark); transform: translateY(-1px); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate svg { width: 16px; height: 16px; }
+
+    .hint { font-size: 12px; color: #8E97A0; margin-top: 5px; }
+
+    /* Output card */
+    .output-card { background: #fff; border: 1.5px solid rgba(15,61,71,0.09); border-radius: 16px; padding: 28px; box-shadow: 0 1px 3px rgba(15,61,71,0.05), 0 4px 16px rgba(15,61,71,0.07); }
+    .output-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 240px; color: #C8CDD2; text-align: center; gap: 12px; }
+    .output-placeholder svg { width: 48px; height: 48px; }
+    .output-placeholder p { font-size: 14px; color: #8E97A0; margin: 0; }
+
+    .barcode-wrap { display: flex; justify-content: center; padding: 20px; background: #fff; border-radius: 10px; border: 1.5px solid rgba(15,61,71,0.07); }
+    #barcode-svg { max-width: 100%; }
+
+    .barcode-meta { margin-top: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .barcode-meta-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #8E97A0; }
+    .barcode-meta-value { font-size: 13px; font-family: monospace; color: #1C2327; background: rgba(26,95,110,0.08); padding: 2px 8px; border-radius: 5px; }
+
+    .action-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn-action {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(15,61,71,0.14);
+      background: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1C2327;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-action svg { width: 15px; height: 15px; }
+    .btn-action:hover { background: rgba(26,95,110,0.06); border-color: var(--brand); color: var(--brand); transform: translateY(-1px); }
+    .btn-action.accent { background: rgba(232,160,32,0.1); border-color: rgba(232,160,32,0.3); color: #C4841A; }
+    .btn-action.accent:hover { background: rgba(232,160,32,0.18); border-color: var(--accent); }
+
+    /* Error */
+    .error-msg { background: rgba(220,38,38,0.07); border-left: 3px solid #DC2626; border-radius: 8px; padding: 12px 14px; font-size: 13.5px; color: #B91C1C; margin-top: 12px; display: none; }
+    .error-msg.visible { display: block; }
+
+    /* Print styles */
+    @media print {
+      #sidebar, .tool-layout > .tool-card, .action-buttons, .breadcrumb, .tool-header, .barcode-meta { display: none !important; }
+      body, #main, #scroll-content { overflow: visible !important; height: auto !important; }
+      .output-card { border: none; box-shadow: none; padding: 0; }
+      .barcode-wrap { border: none; padding: 0; justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<div style="display:flex; height:100vh; overflow:hidden;">
+  <aside id="sidebar">
+    <div class="sidebar-content">
+      <div class="sidebar-logo">
+        <span class="logo-mark">vienta</span>
+        <span class="logo-sub">Kennisbank</span>
+      </div>
+      <nav style="flex:1; padding-top:8px;">
+        <div class="nav-section">
+          <div class="nav-section-title">Overzicht</div>
+          <a class="nav-item" href="../index.html">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+            Dashboard
+          </a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Logistiek</div>
+          <a class="nav-item" href="../guides/retourafhandeling.html">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+            Retourafhandeling
+          </a>
+          <a class="nav-item" href="../guides/retouren-aanmaken.html">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Retouren aanmaken
+          </a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Klantenservice</div>
+          <a class="nav-item" href="../guides/klantvragen.html">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+            Klantvragen beantwoorden
+          </a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Tools</div>
+          <a class="nav-item active" href="barcode-generator.html">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 18.75h.75v.75h-.75v-.75zM18.75 13.5h.75v.75h-.75v-.75zM18.75 18.75h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/></svg>
+            Barcode Generator
+          </a>
+        </div>
+      </nav>
+      <div class="sidebar-footer"><p>Versie 1.0 &mdash; maart 2026</p></div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <div id="scroll-content">
+
+      <nav class="breadcrumb">
+        <a href="../index.html">Home</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="../index.html">Tools</a>
+        <span class="breadcrumb-sep">›</span>
+        <span>Barcode Generator</span>
+      </nav>
+
+      <div class="tool-header">
+        <div class="tool-badge">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg>
+          Tool
+        </div>
+        <h1 class="tool-title">Barcode Generator</h1>
+        <p class="tool-desc">Genereer een scanbare barcode op basis van een nummer of code. Kies het barcodetype, download het resultaat als SVG of PNG, of druk direct af.</p>
+      </div>
+
+      <div class="tool-layout">
+
+        <!-- Input panel -->
+        <div class="tool-card">
+          <div class="tool-card-title">Instellingen</div>
+
+          <div class="form-group">
+            <label for="barcode-input">Barcodenummer of -tekst</label>
+            <input
+              type="text"
+              id="barcode-input"
+              placeholder="bijv. 123456789012"
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <p class="hint">Voer het nummer in dat gecodeerd moet worden.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="barcode-type">Barcodetype</label>
+            <select id="barcode-type">
+              <option value="CODE128">CODE128 — universeel (standaard)</option>
+              <option value="EAN13">EAN-13 — retail (13 cijfers)</option>
+              <option value="EAN8">EAN-8 — compact retail (8 cijfers)</option>
+              <option value="UPCA">UPC-A — Noord-Amerika (12 cijfers)</option>
+              <option value="CODE39">CODE39 — logistiek / magazijn</option>
+              <option value="ITF14">ITF-14 — verpakking / transport</option>
+            </select>
+            <p class="hint">Twijfel? Gebruik CODE128 — werkt met vrijwel elke scanner.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="barcode-height">Hoogte (px)</label>
+            <input type="text" id="barcode-height" value="80" placeholder="80">
+          </div>
+
+          <button class="btn-generate" onclick="generateBarcode()">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/></svg>
+            Genereer barcode
+          </button>
+
+          <div id="error-msg" class="error-msg">
+            <strong>Ongeldige invoer.</strong> Controleer het barcodenummer voor het geselecteerde type.
+            <span id="error-detail"></span>
+          </div>
+        </div>
+
+        <!-- Output panel -->
+        <div class="output-card" id="output-card">
+
+          <!-- Placeholder state -->
+          <div class="output-placeholder" id="output-placeholder">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 18.75h.75v.75h-.75v-.75zM18.75 13.5h.75v.75h-.75v-.75zM18.75 18.75h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
+            </svg>
+            <p>Voer een waarde in en klik op<br><strong style="color:#1C2327;">Genereer barcode</strong></p>
+          </div>
+
+          <!-- Result state (hidden until generated) -->
+          <div id="output-result" style="display:none;">
+            <div class="barcode-wrap">
+              <svg id="barcode-svg"></svg>
+            </div>
+
+            <div class="barcode-meta">
+              <span class="barcode-meta-label">Waarde:</span>
+              <span class="barcode-meta-value" id="barcode-val-display"></span>
+              <span class="barcode-meta-label" style="margin-left:8px;">Type:</span>
+              <span class="barcode-meta-value" id="barcode-type-display"></span>
+            </div>
+
+            <div class="action-buttons">
+              <button class="btn-action" onclick="downloadSVG()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                Download SVG
+              </button>
+              <button class="btn-action" onclick="downloadPNG()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+                Download PNG
+              </button>
+              <button class="btn-action accent" onclick="window.print()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                Afdrukken
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let lastValue = '';
+  let lastType = '';
+
+  function generateBarcode() {
+    const value = document.getElementById('barcode-input').value.trim();
+    const format = document.getElementById('barcode-type').value;
+    const heightRaw = parseInt(document.getElementById('barcode-height').value) || 80;
+    const height = Math.max(20, Math.min(200, heightRaw));
+    const errorEl = document.getElementById('error-msg');
+
+    if (!value) {
+      showError('Voer eerst een barcodenummer in.');
+      return;
+    }
+
+    try {
+      JsBarcode('#barcode-svg', value, {
+        format: format,
+        lineColor: '#1C2327',
+        width: 2,
+        height: height,
+        displayValue: true,
+        fontOptions: 'normal',
+        font: 'DM Sans, sans-serif',
+        fontSize: 13,
+        textMargin: 6,
+        margin: 16,
+        background: '#FFFFFF',
+      });
+
+      errorEl.classList.remove('visible');
+      document.getElementById('output-placeholder').style.display = 'none';
+      document.getElementById('output-result').style.display = 'block';
+      document.getElementById('barcode-val-display').textContent = value;
+      document.getElementById('barcode-type-display').textContent = format;
+      lastValue = value;
+      lastType = format;
+
+    } catch(e) {
+      const msg = e.message || '';
+      let detail = '';
+      if (format === 'EAN13') detail = ' EAN-13 vereist precies 12 of 13 cijfers.';
+      else if (format === 'EAN8') detail = ' EAN-8 vereist precies 7 of 8 cijfers.';
+      else if (format === 'UPCA') detail = ' UPC-A vereist precies 11 of 12 cijfers.';
+      else if (format === 'ITF14') detail = ' ITF-14 vereist precies 14 cijfers.';
+      showError(detail);
+    }
+  }
+
+  function showError(detail) {
+    const el = document.getElementById('error-msg');
+    document.getElementById('error-detail').textContent = detail;
+    el.classList.add('visible');
+  }
+
+  function downloadSVG() {
+    const svg = document.getElementById('barcode-svg');
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `barcode-${lastValue || 'vienta'}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPNG() {
+    const svg = document.getElementById('barcode-svg');
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const scale = 2; // 2x voor hogere resolutie
+      canvas.width = img.naturalWidth * scale || svg.getBBox().width * scale;
+      canvas.height = img.naturalHeight * scale || svg.getBBox().height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `barcode-${lastValue || 'vienta'}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, 'image/png');
+
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
+  // Live generatie bij typen (debounced)
+  let debounceTimer;
+  document.getElementById('barcode-input').addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      if (this.value.trim()) generateBarcode();
+    }, 400);
+  });
+  document.getElementById('barcode-type').addEventListener('change', function() {
+    if (document.getElementById('barcode-input').value.trim()) generateBarcode();
+  });
+
+  // Enter key triggers generation
+  document.getElementById('barcode-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') generateBarcode();
+  });
+</script>
+</body>
+</html>

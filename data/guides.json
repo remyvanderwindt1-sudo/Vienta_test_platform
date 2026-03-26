@@ -1,0 +1,46 @@
+{
+  "guides": [
+    {
+      "id": "retourafhandeling",
+      "title": "Retourafhandeling",
+      "category": "Logistiek",
+      "description": "Stap-voor-stap verwerking van retouren vanuit het klantportaal.",
+      "tags": ["retour", "logistiek", "pakket", "zending", "verwerking"],
+      "url": "guides/retourafhandeling.html",
+      "icon": "package-open",
+      "updated": "2026-03-26"
+    },
+    {
+      "id": "retouren-aanmaken",
+      "title": "Retouren aanmaken",
+      "category": "Logistiek",
+      "description": "Handmatig een retouropdracht aanmaken in het systeem.",
+      "tags": ["retour", "aanmaken", "opdracht", "systeem", "nieuw"],
+      "url": "guides/retouren-aanmaken.html",
+      "icon": "plus-circle",
+      "updated": "2026-03-26"
+    },
+    {
+      "id": "klantvragen",
+      "title": "Klantvragen beantwoorden",
+      "category": "Klantenservice",
+      "description": "Richtlijnen en scripts voor veelgestelde klantvragen via e-mail en telefoon.",
+      "tags": ["klant", "service", "vraag", "script", "email", "telefoon", "helpdesk"],
+      "url": "guides/klantvragen.html",
+      "icon": "message-circle",
+      "updated": "2026-03-26"
+    }
+  ],
+  "tools": [
+    {
+      "id": "barcode-generator",
+      "title": "Barcode Generator",
+      "category": "Tools",
+      "description": "Genereer een scanbare barcode op basis van een nummer of code. Download als SVG of PNG.",
+      "tags": ["barcode", "scan", "label", "nummer", "code", "ean", "download"],
+      "url": "tools/barcode-generator.html",
+      "icon": "scan-barcode",
+      "updated": "2026-03-26"
+    }
+  ]
+}
